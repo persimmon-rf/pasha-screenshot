@@ -1,0 +1,15 @@
+# ビルド成果物
+*.exe
+*.exe.config
+*.pdb
+*.dll
+
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+
+# その他
+*.zip
+Thumbs.db

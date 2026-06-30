@@ -1,0 +1,29 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build with csc (.NET Framework)
+        shell: cmd
+        run: build.bat
+
+      - name: Package zip
+        shell: pwsh
+        run: Compress-Archive -Path Pasha.exe,Pasha.exe.config,README.md,LICENSE -DestinationPath Pasha.zip -Force
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Pasha.exe
+            Pasha.zip
