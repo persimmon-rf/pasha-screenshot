@@ -59,15 +59,39 @@ namespace Pasha
             tabs.TabPages.Add(BuildAboutTab());
 
             var bottom = new Panel { Dock = DockStyle.Bottom, Height = 48 };
-            var btnExit = new Button { Text = "アプリを終了", Left = 12, Top = 10, Width = 104 };
+
+            var btnExit = new Button
+            {
+                Text = "アプリを終了", Left = 12, Top = 10,
+                AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(8, 2, 8, 2)
+            };
             btnExit.Click += delegate { _ctrl.ExitApp(); };
-            _btnApply = new Button { Text = ApplyText, Left = 276, Top = 10, Width = 112 };
-            _btnApply.Click += delegate { ApplySettings(); };
-            var btnClose = new Button { Text = "閉じる", Left = 396, Top = 10, Width = 92 };
+
+            // 右側は自動サイズの FlowLayoutPanel で右寄せ(文字が切れないように)
+            var right = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Right, FlowDirection = FlowDirection.RightToLeft,
+                AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false, Padding = new Padding(0, 8, 8, 8)
+            };
+            var btnClose = new Button
+            {
+                Text = "閉じる", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(6, 0, 0, 0), Padding = new Padding(10, 2, 10, 2)
+            };
             btnClose.Click += delegate { Close(); };
+            _btnApply = new Button
+            {
+                Text = ApplyText, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(6, 0, 0, 0), Padding = new Padding(10, 2, 10, 2)
+            };
+            _btnApply.Click += delegate { ApplySettings(); };
+            right.Controls.Add(btnClose);   // 右端
+            right.Controls.Add(_btnApply);  // その左
+
+            bottom.Controls.Add(right);
             bottom.Controls.Add(btnExit);
-            bottom.Controls.Add(_btnApply);
-            bottom.Controls.Add(btnClose);
 
             Controls.Add(tabs);
             Controls.Add(bottom);
