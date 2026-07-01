@@ -8,7 +8,7 @@ namespace Pasha
         public const string Name = "Pasha";
         public const string Version = "1.0.0";
         public const string Author = "persimmon";
-        public const string Url = "https://github.com/peresimmon/pasha-screenshot";
+        public const string Url = "https://github.com/persimmon-rf/pasha-screenshot";
         public const string License = "MIT License";
     }
 
