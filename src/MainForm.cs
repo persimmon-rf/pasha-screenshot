@@ -27,8 +27,12 @@ namespace Pasha
         // 動作設定タブ
         private CheckBox _chkStartInTray, _chkMinToTray, _chkAlsoClip, _chkOpenFolder, _chkSound, _chkNotify;
 
+        private Button _btnApply;
+        private Timer _applyFlash;
+
         private static readonly int[] DelaySecs = { 0, 3, 5, 10 };
         private const int FormW = 500;
+        private const string ApplyText = "保存して反映";
 
         public MainForm(AppController ctrl)
         {
@@ -60,11 +64,11 @@ namespace Pasha
             var btnClose = new Button { Text = "閉じる", Top = 10, Width = 92, Anchor = AnchorStyles.Top | AnchorStyles.Right };
             btnClose.Left = FormW - 12 - btnClose.Width;
             btnClose.Click += delegate { Close(); };
-            var btnApply = new Button { Text = "設定を適用", Top = 10, Width = 96, Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            btnApply.Left = btnClose.Left - 8 - btnApply.Width;
-            btnApply.Click += delegate { ApplySettings(true); };
+            _btnApply = new Button { Text = ApplyText, Top = 10, Width = 112, Anchor = AnchorStyles.Top | AnchorStyles.Right };
+            _btnApply.Left = btnClose.Left - 8 - _btnApply.Width;
+            _btnApply.Click += delegate { ApplySettings(); };
             bottom.Controls.Add(btnExit);
-            bottom.Controls.Add(btnApply);
+            bottom.Controls.Add(_btnApply);
             bottom.Controls.Add(btnClose);
 
             Controls.Add(tabs);
@@ -215,11 +219,26 @@ namespace Pasha
             {
                 p.Controls.Add(new Label { Text = a.Label, Left = 16, Top = y + 4, Width = 280, AutoSize = false });
                 var box = new HotkeyBox { Left = 300, Top = y, Width = 192 };
+                // 欄を編集中だけホットキーを一時解除(欄がキーを拾えるように)
+                box.Enter += delegate { _ctrl.SuspendHotkeys(); };
+                box.Leave += delegate
+                {
+                    BeginInvoke((MethodInvoker)delegate
+                    {
+                        if (!AnyHotkeyBoxFocused()) _ctrl.ResumeHotkeys();
+                    });
+                };
                 _hkBoxes[a.Id] = box;
                 p.Controls.Add(box);
                 y += 34;
             }
             return p;
+        }
+
+        private bool AnyHotkeyBoxFocused()
+        {
+            foreach (var b in _hkBoxes.Values) if (b.Focused) return true;
+            return false;
         }
 
         // ===== 動作設定タブ =====
@@ -300,7 +319,7 @@ namespace Pasha
             UpdateEnabled();
         }
 
-        private void ApplySettings(bool showMessage)
+        private void ApplySettings()
         {
             var c = _ctrl.Config.Clone();
             c.Delay = DelaySecs[Math.Max(0, _cmbDelay.SelectedIndex)];
@@ -323,24 +342,33 @@ namespace Pasha
             c.PlaySound = _chkSound.Checked;
             c.ShowNotification = _chkNotify.Checked;
 
-            var failed = _ctrl.ApplyConfig(c);
+            var failed = _ctrl.ApplyConfig(c);   // この時点で即時反映
 
-            if (showMessage)
+            if (failed.Count > 0)
             {
-                if (failed.Count > 0)
-                {
-                    MessageBox.Show(this,
-                        "次のホットキーは他のアプリ等と競合しているため登録できませんでした:\n\n  " +
-                        string.Join("\n  ", failed.ToArray()) +
-                        "\n\n別のキーに変更してください。",
-                        AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                else
-                {
-                    MessageBox.Show(this, "設定を適用しました。", AppInfo.Name,
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
+                MessageBox.Show(this,
+                    "次のホットキーは他のアプリ等と競合しているため登録できませんでした:\n\n  " +
+                    string.Join("\n  ", failed.ToArray()) +
+                    "\n\n別のキーに変更してください。",
+                    AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
+            else
+            {
+                FlashApplied();
+            }
+        }
+
+        // 保存ボタンに一瞬「保存しました」と表示して反映を知らせる(通知は出さない)
+        private void FlashApplied()
+        {
+            _btnApply.Text = "保存しました";
+            if (_applyFlash == null)
+            {
+                _applyFlash = new Timer { Interval = 1200 };
+                _applyFlash.Tick += delegate { _applyFlash.Stop(); _btnApply.Text = ApplyText; };
+            }
+            _applyFlash.Stop();
+            _applyFlash.Start();
         }
 
         private void UpdateEnabled()
@@ -366,20 +394,6 @@ namespace Pasha
             return v;
         }
 
-        // 前面のときはグローバルホットキーを解除(割り当て欄でキーを拾えるように)、
-        // 非前面のときは有効化する。
-        protected override void OnActivated(EventArgs e)
-        {
-            base.OnActivated(e);
-            _ctrl.NotifyMainActive(true);
-        }
-
-        protected override void OnDeactivate(EventArgs e)
-        {
-            base.OnDeactivate(e);
-            _ctrl.NotifyMainActive(false);
-        }
-
         // ×ボタン: 設定に応じてトレイ格納 or 終了
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
@@ -389,7 +403,7 @@ namespace Pasha
                 if (_ctrl.Config.MinimizeToTrayOnClose)
                 {
                     Hide();
-                    _ctrl.NotifyMainActive(false); // トレイ格納中はホットキー有効
+                    _ctrl.ResumeHotkeys(); // 念のためトレイ格納中はホットキー有効に
                 }
                 else
                     _ctrl.ExitApp();

@@ -17,8 +17,7 @@ namespace Pasha
         private readonly Dictionary<int, HotkeyActionDef> _idMap = new Dictionary<int, HotkeyActionDef>();
         private MainForm _form;
         private string _lastSavedPath;
-        private bool _suspended;   // 操作ウィンドウ前面時はホットキーを一時解除
-        private bool _mainActive;  // 操作ウィンドウが前面か
+        private bool _suspended;   // ホットキー割り当て欄の編集中だけ一時解除
 
         public AppConfig Config { get { return _cfg; } }
 
@@ -79,17 +78,10 @@ namespace Pasha
             return failed;
         }
 
-        // 操作ウィンドウが前面のときはホットキーを一時解除して、
-        // 割り当て欄でキー入力(Ctrl+Shift+1 等)を拾えるようにする。
-        // ウィンドウが非前面(他アプリ作業中)のときだけホットキーを有効化。
-        public void NotifyMainActive(bool active)
-        {
-            _mainActive = active;
-            if (active) SuspendHotkeys();
-            else ResumeHotkeys();
-        }
-
-        private void SuspendHotkeys()
+        // ホットキー割り当て欄を編集しているあいだだけ一時解除し、
+        // 欄がキー入力(Ctrl+Shift+1 等)を拾えるようにする。
+        // それ以外は常に有効なので連続撮影できる。
+        public void SuspendHotkeys()
         {
             if (_suspended) return;
             _hk.UnregisterAll();
@@ -97,7 +89,7 @@ namespace Pasha
             _suspended = true;
         }
 
-        private void ResumeHotkeys()
+        public void ResumeHotkeys()
         {
             if (!_suspended) return;
             RegisterHotkeys();
@@ -375,8 +367,7 @@ namespace Pasha
         {
             _cfg = newCfg;
             _cfg.Save();
-            var failed = RegisterHotkeys();          // 競合検出のため一旦登録
-            if (_mainActive) SuspendHotkeys();       // ウィンドウ前面中は解除状態に戻す
+            var failed = RegisterHotkeys();          // 押した瞬間に登録 = 即時反映
             _tray.ContextMenuStrip = BuildTrayMenu();
             return failed;
         }

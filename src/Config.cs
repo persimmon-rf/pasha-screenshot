@@ -121,7 +121,7 @@ namespace Pasha
         public int Delay = 0;                 // 秒 (0/3/5/10)
         public bool AlsoClipboardOnSave = false;
         public bool PlaySound = true;
-        public bool ShowNotification = true;
+        public bool ShowNotification = false;  // デスクトップ通知は既定オフ
         public bool StartInTray = false;
         public bool MinimizeToTrayOnClose = true;
         public bool OpenFolderAfterSave = false;
