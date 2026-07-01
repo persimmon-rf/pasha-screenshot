@@ -59,14 +59,12 @@ namespace Pasha
             tabs.TabPages.Add(BuildAboutTab());
 
             var bottom = new Panel { Dock = DockStyle.Bottom, Height = 48 };
-            var btnExit = new Button { Text = "アプリを終了", Left = 12, Top = 10, Width = 104, AutoSize = true };
+            var btnExit = new Button { Text = "アプリを終了", Left = 12, Top = 10, Width = 104 };
             btnExit.Click += delegate { _ctrl.ExitApp(); };
-            var btnClose = new Button { Text = "閉じる", Top = 10, Width = 92, Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            btnClose.Left = FormW - 12 - btnClose.Width;
-            btnClose.Click += delegate { Close(); };
-            _btnApply = new Button { Text = ApplyText, Top = 10, Width = 112, Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            _btnApply.Left = btnClose.Left - 8 - _btnApply.Width;
+            _btnApply = new Button { Text = ApplyText, Left = 276, Top = 10, Width = 112 };
             _btnApply.Click += delegate { ApplySettings(); };
+            var btnClose = new Button { Text = "閉じる", Left = 396, Top = 10, Width = 92 };
+            btnClose.Click += delegate { Close(); };
             bottom.Controls.Add(btnExit);
             bottom.Controls.Add(_btnApply);
             bottom.Controls.Add(btnClose);
