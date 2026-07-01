@@ -8,7 +8,7 @@ namespace Pasha
 {
     internal enum CaptureMode { Desktop, ActiveWindow, ClientArea, Region, Monitor }
     internal enum OutputKind { Save, Clipboard }
-    internal enum FileNameMode { Sequence, DateTime }
+    internal enum FileNameMode { Sequence, DateTime, PrefixOnly }
 
     // ホットキー1件分の定義 (RegisterHotKey 用)
     internal class HotkeyDef
@@ -207,7 +207,11 @@ namespace Pasha
                     {
                         case "SaveFolder": c.SaveFolder = v; break;
                         case "Prefix": c.Prefix = v; break;
-                        case "NameMode": c.NameMode = v == "DateTime" ? FileNameMode.DateTime : FileNameMode.Sequence; break;
+                        case "NameMode":
+                            c.NameMode = v == "DateTime" ? FileNameMode.DateTime
+                                       : v == "PrefixOnly" ? FileNameMode.PrefixOnly
+                                       : FileNameMode.Sequence;
+                            break;
                         case "SequenceDigits": int.TryParse(v, out c.SequenceDigits); break;
                         case "Format": c.Format = v.ToUpperInvariant() == "JPEG" ? "JPEG" : "PNG"; break;
                         case "JpegQuality": int.TryParse(v, out c.JpegQuality); break;

@@ -177,7 +177,7 @@ namespace Pasha
 
             p.Controls.Add(Cap("ファイル名の形式:", 16, y)); y += 24;
             _cmbNameMode = new ComboBox { Left = 16, Top = y, Width = 220, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cmbNameMode.Items.AddRange(new object[] { "連番 (接頭語 + 番号)", "日時 (接頭語 + 日付時刻)" });
+            _cmbNameMode.Items.AddRange(new object[] { "連番 (接頭語 + 番号)", "日時 (接頭語 + 日付時刻)", "なし (接頭語のみ)" });
             _cmbNameMode.SelectedIndexChanged += delegate { UpdateEnabled(); };
             p.Controls.Add(_cmbNameMode);
             _lblDigits = Cap("連番の桁数:", 252, y + 3);
@@ -281,7 +281,8 @@ namespace Pasha
             _cmbDelay.SelectedIndex = DelayIndex(c.Delay);
             _txtFolder.Text = c.SaveFolder;
             _txtPrefix.Text = c.Prefix;
-            _cmbNameMode.SelectedIndex = c.NameMode == FileNameMode.DateTime ? 1 : 0;
+            _cmbNameMode.SelectedIndex = c.NameMode == FileNameMode.DateTime ? 1
+                                       : c.NameMode == FileNameMode.PrefixOnly ? 2 : 0;
             _numDigits.Value = Clamp(c.SequenceDigits, 1, 8);
             _cmbFormat.SelectedItem = c.Format == "JPEG" ? "JPEG" : "PNG";
             _numQuality.Value = Clamp(c.JpegQuality, 1, 100);
@@ -305,7 +306,9 @@ namespace Pasha
             c.Delay = DelaySecs[Math.Max(0, _cmbDelay.SelectedIndex)];
             c.SaveFolder = _txtFolder.Text.Trim();
             c.Prefix = _txtPrefix.Text;
-            c.NameMode = _cmbNameMode.SelectedIndex == 1 ? FileNameMode.DateTime : FileNameMode.Sequence;
+            c.NameMode = _cmbNameMode.SelectedIndex == 1 ? FileNameMode.DateTime
+                       : _cmbNameMode.SelectedIndex == 2 ? FileNameMode.PrefixOnly
+                       : FileNameMode.Sequence;
             c.SequenceDigits = (int)_numDigits.Value;
             c.Format = (string)_cmbFormat.SelectedItem == "JPEG" ? "JPEG" : "PNG";
             c.JpegQuality = (int)_numQuality.Value;
@@ -363,6 +366,20 @@ namespace Pasha
             return v;
         }
 
+        // 前面のときはグローバルホットキーを解除(割り当て欄でキーを拾えるように)、
+        // 非前面のときは有効化する。
+        protected override void OnActivated(EventArgs e)
+        {
+            base.OnActivated(e);
+            _ctrl.NotifyMainActive(true);
+        }
+
+        protected override void OnDeactivate(EventArgs e)
+        {
+            base.OnDeactivate(e);
+            _ctrl.NotifyMainActive(false);
+        }
+
         // ×ボタン: 設定に応じてトレイ格納 or 終了
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
@@ -370,7 +387,10 @@ namespace Pasha
             {
                 e.Cancel = true;
                 if (_ctrl.Config.MinimizeToTrayOnClose)
+                {
                     Hide();
+                    _ctrl.NotifyMainActive(false); // トレイ格納中はホットキー有効
+                }
                 else
                     _ctrl.ExitApp();
             }

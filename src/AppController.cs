@@ -17,6 +17,8 @@ namespace Pasha
         private readonly Dictionary<int, HotkeyActionDef> _idMap = new Dictionary<int, HotkeyActionDef>();
         private MainForm _form;
         private string _lastSavedPath;
+        private bool _suspended;   // 操作ウィンドウ前面時はホットキーを一時解除
+        private bool _mainActive;  // 操作ウィンドウが前面か
 
         public AppConfig Config { get { return _cfg; } }
 
@@ -73,7 +75,32 @@ namespace Pasha
                 if (_hk.Register(id, def.Mods, def.Vk)) _idMap[id] = a;
                 else failed.Add(a.Label + " (" + def.ToDisplay() + ")");
             }
+            _suspended = false;
             return failed;
+        }
+
+        // 操作ウィンドウが前面のときはホットキーを一時解除して、
+        // 割り当て欄でキー入力(Ctrl+Shift+1 等)を拾えるようにする。
+        // ウィンドウが非前面(他アプリ作業中)のときだけホットキーを有効化。
+        public void NotifyMainActive(bool active)
+        {
+            _mainActive = active;
+            if (active) SuspendHotkeys();
+            else ResumeHotkeys();
+        }
+
+        private void SuspendHotkeys()
+        {
+            if (_suspended) return;
+            _hk.UnregisterAll();
+            _idMap.Clear();
+            _suspended = true;
+        }
+
+        private void ResumeHotkeys()
+        {
+            if (!_suspended) return;
+            RegisterHotkeys();
         }
 
         private void OnHotkey(int id)
@@ -199,8 +226,7 @@ namespace Pasha
             }
             else
             {
-                string path = BuildSavePath();
-                SaveImage(bmp, path);
+                string path = SaveWithRetry(bmp);
                 if (_cfg.AlsoClipboardOnSave)
                     try { Clipboard.SetImage(bmp); } catch { }
                 _lastSavedPath = path;
@@ -216,16 +242,7 @@ namespace Pasha
             Directory.CreateDirectory(_cfg.SaveFolder);
             string ext = _cfg.Format == "JPEG" ? ".jpg" : ".png";
 
-            if (_cfg.NameMode == FileNameMode.DateTime)
-            {
-                string baseName = _cfg.Prefix + DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string path = Path.Combine(_cfg.SaveFolder, baseName + ext);
-                int n = 1;
-                while (File.Exists(path))
-                    path = Path.Combine(_cfg.SaveFolder, baseName + "_" + (n++) + ext);
-                return path;
-            }
-            else
+            if (_cfg.NameMode == FileNameMode.Sequence)
             {
                 int next = NextSequence(ext);
                 string path;
@@ -237,6 +254,43 @@ namespace Pasha
                 } while (File.Exists(path));
                 return path;
             }
+
+            string baseName;
+            if (_cfg.NameMode == FileNameMode.DateTime)
+                baseName = _cfg.Prefix + DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            else // PrefixOnly: 接頭語のみ
+                baseName = _cfg.Prefix.Length > 0 ? _cfg.Prefix : "screenshot";
+
+            return MakeUniquePath(baseName, ext);
+        }
+
+        // 同名ファイルがある場合は _1, _2... と自動で連番を付けて衝突を回避
+        private string MakeUniquePath(string baseName, string ext)
+        {
+            string path = Path.Combine(_cfg.SaveFolder, baseName + ext);
+            int n = 1;
+            while (File.Exists(path))
+                path = Path.Combine(_cfg.SaveFolder, baseName + "_" + (n++) + ext);
+            return path;
+        }
+
+        // 書き込みに失敗(ファイルロック等)しても別名で再試行し、極力エラーにしない
+        private string SaveWithRetry(Bitmap bmp)
+        {
+            string path = BuildSavePath();
+            for (int attempt = 0; attempt < 6; attempt++)
+            {
+                try { SaveImage(bmp, path); return path; }
+                catch
+                {
+                    if (attempt == 5) throw;
+                    string dir = Path.GetDirectoryName(path);
+                    string name = Path.GetFileNameWithoutExtension(path);
+                    string ext = Path.GetExtension(path);
+                    path = Path.Combine(dir, name + "_" + (attempt + 1) + ext);
+                }
+            }
+            return path;
         }
 
         private int NextSequence(string ext)
@@ -321,7 +375,8 @@ namespace Pasha
         {
             _cfg = newCfg;
             _cfg.Save();
-            var failed = RegisterHotkeys();
+            var failed = RegisterHotkeys();          // 競合検出のため一旦登録
+            if (_mainActive) SuspendHotkeys();       // ウィンドウ前面中は解除状態に戻す
             _tray.ContextMenuStrip = BuildTrayMenu();
             return failed;
         }
