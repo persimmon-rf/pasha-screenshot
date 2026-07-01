@@ -155,6 +155,7 @@ namespace Pasha
             b.TextAlign = ContentAlignment.MiddleLeft;
             b.Click += delegate
             {
+                ApplySettings(false); // 画面上の入力(接頭語など)を撮影前に反映
                 OutputKind output = _rdoClip.Checked ? OutputKind.Clipboard : OutputKind.Save;
                 int delay = DelaySecs[Math.Max(0, _cmbDelay.SelectedIndex)];
                 int monitor = useMonitor ? _cmbMonitor.SelectedIndex : -1;
@@ -341,7 +342,9 @@ namespace Pasha
             UpdateEnabled();
         }
 
-        private void ApplySettings()
+        private void ApplySettings() { ApplySettings(true); }
+
+        private void ApplySettings(bool feedback)
         {
             var c = _ctrl.Config.Clone();
             c.Delay = DelaySecs[Math.Max(0, _cmbDelay.SelectedIndex)];
@@ -365,6 +368,8 @@ namespace Pasha
             c.ShowNotification = _chkNotify.Checked;
 
             var failed = _ctrl.ApplyConfig(c);   // この時点で即時反映
+
+            if (!feedback) return;
 
             if (failed.Count > 0)
             {
@@ -422,6 +427,7 @@ namespace Pasha
             if (e.CloseReason == CloseReason.UserClosing)
             {
                 e.Cancel = true;
+                ApplySettings(false); // 画面の入力(接頭語など)をトレイ格納前に反映
                 if (_ctrl.Config.MinimizeToTrayOnClose)
                 {
                     Hide();

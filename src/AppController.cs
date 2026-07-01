@@ -150,17 +150,29 @@ namespace Pasha
             DoCapture(mode, output, monitorIndex);
         }
 
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
         private void DoCapture(CaptureMode mode, OutputKind output, int monitorIndex)
         {
-            bool wasVisible = _form != null && !_form.IsDisposed && _form.Visible &&
-                              _form.WindowState != FormWindowState.Minimized;
+            // アクティブウィンドウ / クライアント領域は対象ウィンドウを直接撮るので、
+            // 設定画面を隠さない(ちらつき・フォーカス奪取を防ぐ)。
+            // デスクトップ / モニター / 矩形は設定画面が写り込まないよう一時的に隠す。
+            bool needHide = (mode == CaptureMode.Desktop || mode == CaptureMode.Monitor ||
+                             mode == CaptureMode.Region);
+            IntPtr prevForeground = GetForegroundWindow();
+            bool hid = false;
             try
             {
-                if (wasVisible)
+                if (needHide && _form != null && !_form.IsDisposed && _form.Visible &&
+                    _form.WindowState != FormWindowState.Minimized)
                 {
                     _form.Hide();
-                    System.Threading.Thread.Sleep(180);
+                    System.Threading.Thread.Sleep(160);
                     Application.DoEvents();
+                    hid = true;
                 }
                 Bitmap bmp = Grab(mode, monitorIndex);
                 if (bmp == null) return;
@@ -172,11 +184,9 @@ namespace Pasha
             }
             finally
             {
-                if (wasVisible && _form != null && !_form.IsDisposed)
-                {
-                    _form.Show();
-                    _form.Activate();
-                }
+                // 再表示するが前面化はしない。フォーカスは元のウィンドウへ戻す。
+                if (hid && _form != null && !_form.IsDisposed) _form.Visible = true;
+                if (prevForeground != IntPtr.Zero) SetForegroundWindow(prevForeground);
             }
         }
 
